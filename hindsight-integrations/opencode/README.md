@@ -150,6 +150,60 @@ Search long-term memory. The agent uses this proactively before answering questi
 
 Generate a synthesized answer from long-term memory. Unlike recall (raw memories), reflect produces a coherent summary.
 
+## Per-Call Tag Filtering
+
+All three tools (`hindsight_retain`, `hindsight_recall`, `hindsight_reflect`) accept optional `tags` and `tagsMatch` arguments that override the plugin's static `retainTags`/`recallTags` config for that single call.
+
+### Tool Arguments
+
+| Tool | Arg | Type | Default | Description |
+|------|-----|------|---------|-------------|
+| `hindsight_retain` | `tags` | `string[]` | config `retainTags` | Tags attached to the memory |
+| `hindsight_recall` | `tags` | `string[]` | config `recallTags` | Tags to filter by |
+| `hindsight_recall` | `tagsMatch` | `string` | `"any_strict"` (when `tags` provided) | Match mode: `any`, `all`, `any_strict`, `all_strict` |
+| `hindsight_reflect` | `tags` | `string[]` | config `recallTags` | Tags to filter by |
+| `hindsight_reflect` | `tagsMatch` | `string` | `"any_strict"` (when `tags` provided) | Match mode |
+
+When `tags` is omitted, the tool uses the config values (`retainTags`/`recallTags`/`recallTagsMatch`) as before — fully backward compatible.
+
+### Project & User Memory Scoping
+
+Use tag conventions to separate project-specific memories from cross-project user-level memories:
+
+- **Project memories**: tagged `project:<name>` (set via `HINDSIGHT_RETAIN_TAGS` env var per project)
+- **User memories**: tagged `scope:user` (set explicitly by the agent via `tags` arg)
+
+#### Per-project tagging via direnv
+
+Set `HINDSIGHT_RETAIN_TAGS` per project using [direnv](https://direnv.net/):
+
+```bash
+# my-project/.envrc
+export HINDSIGHT_RETAIN_TAGS=project:my-project
+```
+
+direnv auto-loads this when you `cd` into the directory. Every auto-retain and `hindsight_retain` call (without explicit `tags`) gets tagged `project:my-project`.
+
+#### Example: saving a user preference
+
+```
+hindsight_retain(content: "User prefers functional programming", tags: ["scope:user"])
+```
+
+#### Example: recalling user-only memories
+
+```
+hindsight_recall(query: "programming preferences", tags: ["scope:user"])
+# tagsMatch defaults to "any_strict" — returns only scope:user memories
+```
+
+#### Example: recalling everything (both project and user)
+
+```
+hindsight_recall(query: "what do you know")
+# No tags arg → no filter → returns all memories
+```
+
 ## Dynamic Bank IDs
 
 For multi-project setups, enable dynamic bank ID derivation:
