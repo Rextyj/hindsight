@@ -389,4 +389,78 @@ describe("createTools", () => {
       }));
     });
   });
+
+  describe("hindsight_recall tags override", () => {
+    it("uses config recallTags when tags arg omitted", async () => {
+      const client = {
+        retain: vi.fn(),
+        recall: vi.fn().mockResolvedValue({ results: [] }),
+        reflect: vi.fn(),
+      } as any;
+      const config = makeConfig({ recallTags: ["project:my-app"], recallTagsMatch: "any" });
+      const tools = createTools(client, "test-bank", config);
+
+      await tools.hindsight_recall.execute({ query: "q" }, mockContext);
+
+      expect(client.recall).toHaveBeenCalledWith("test-bank", "q", expect.objectContaining({
+        tags: ["project:my-app"],
+        tagsMatch: "any",
+      }));
+    });
+
+    it("overrides config recallTags when tags arg provided", async () => {
+      const client = {
+        retain: vi.fn(),
+        recall: vi.fn().mockResolvedValue({ results: [] }),
+        reflect: vi.fn(),
+      } as any;
+      const config = makeConfig({ recallTags: ["project:my-app"] });
+      const tools = createTools(client, "test-bank", config);
+
+      await tools.hindsight_recall.execute(
+        { query: "q", tags: ["scope:user"] },
+        mockContext
+      );
+
+      expect(client.recall).toHaveBeenCalledWith("test-bank", "q", expect.objectContaining({
+        tags: ["scope:user"],
+        tagsMatch: "any_strict",
+      }));
+    });
+
+    it("uses explicit tagsMatch when provided with tags", async () => {
+      const client = {
+        retain: vi.fn(),
+        recall: vi.fn().mockResolvedValue({ results: [] }),
+        reflect: vi.fn(),
+      } as any;
+      const tools = createTools(client, "test-bank", makeConfig());
+
+      await tools.hindsight_recall.execute(
+        { query: "q", tags: ["scope:user"], tagsMatch: "any" },
+        mockContext
+      );
+
+      expect(client.recall).toHaveBeenCalledWith("test-bank", "q", expect.objectContaining({
+        tags: ["scope:user"],
+        tagsMatch: "any",
+      }));
+    });
+
+    it("uses no filter when both tags and config recallTags are empty", async () => {
+      const client = {
+        retain: vi.fn(),
+        recall: vi.fn().mockResolvedValue({ results: [] }),
+        reflect: vi.fn(),
+      } as any;
+      const tools = createTools(client, "test-bank", makeConfig());
+
+      await tools.hindsight_recall.execute({ query: "q" }, mockContext);
+
+      expect(client.recall).toHaveBeenCalledWith("test-bank", "q", expect.objectContaining({
+        tags: undefined,
+        tagsMatch: undefined,
+      }));
+    });
+  });
 });

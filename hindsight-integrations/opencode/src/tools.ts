@@ -73,14 +73,32 @@ export function createTools(
       query: tool.schema
         .string()
         .describe("Natural language search query. Be specific about what you need to know."),
+      tags: tool.schema
+        .array(tool.schema.string())
+        .optional()
+        .describe(
+          "Tags to filter by. Overrides config recallTags for this call. " +
+            "Use ['scope:user'] for user-level memories, ['project:<name>'] for project-scoped."
+        ),
+      tagsMatch: tool.schema
+        .string()
+        .optional()
+        .describe(
+          "Tag match mode: 'any', 'all', 'any_strict', 'all_strict'. " +
+            "Defaults to 'any_strict' when tags arg is provided. Ignored if tags arg is omitted."
+        ),
     },
     async execute(args) {
+      const recallTags = args.tags !== undefined ? args.tags : (config.recallTags.length ? config.recallTags : []);
+      const recallTagsMatch = args.tags !== undefined
+        ? ((args.tagsMatch || "any_strict") as "any" | "all" | "any_strict" | "all_strict")
+        : (config.recallTags.length ? config.recallTagsMatch : undefined);
       const response = await client.recall(bankId, args.query, {
         budget: config.recallBudget as "low" | "mid" | "high",
         maxTokens: config.recallMaxTokens,
         types: config.recallTypes,
-        tags: config.recallTags.length ? config.recallTags : undefined,
-        tagsMatch: config.recallTags.length ? config.recallTagsMatch : undefined,
+        tags: recallTags.length ? recallTags : undefined,
+        tagsMatch: recallTagsMatch,
       });
 
       const results = response.results || [];
