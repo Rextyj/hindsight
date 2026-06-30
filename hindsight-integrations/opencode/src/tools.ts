@@ -42,6 +42,14 @@ export function createTools(
         .string()
         .optional()
         .describe("Optional context about where this information came from."),
+      tags: tool.schema
+        .array(tool.schema.string())
+        .optional()
+        .describe(
+          "Tags to attach to this memory. Overrides config retainTags for this call. " +
+            "Use ['scope:user'] for cross-project user-level memories, " +
+            "['project:<name>'] for project-scoped memories."
+        ),
     },
     async execute(args) {
       if (missionsSet) {
@@ -49,7 +57,7 @@ export function createTools(
       }
       await client.retain(bankId, args.content, {
         context: args.context || config.retainContext,
-        tags: config.retainTags.length ? config.retainTags : undefined,
+        tags: args.tags !== undefined ? args.tags : (config.retainTags.length ? config.retainTags : undefined),
         metadata: Object.keys(config.retainMetadata).length ? config.retainMetadata : undefined,
       });
       return "Memory stored successfully.";
