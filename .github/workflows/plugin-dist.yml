@@ -18,6 +18,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: main
 
       - uses: actions/setup-node@v4
         with:
@@ -29,23 +30,36 @@ jobs:
           npm install
           npm run build
 
-      - name: Prepare plugin-dist branch
+      - name: Deploy to plugin-dist branch
         run: |
-          git checkout plugin-dist || git checkout --orphan plugin-dist
-          git reset --hard origin/plugin-dist 2>/dev/null || true
-
-          # Copy built files from the main checkout
-          # plugin-dist already has the source at root (from subtree split),
-          # we just need to add the dist/ folder
-          cp -r hindsight-integrations/opencode/dist ./dist
-          cp hindsight-integrations/opencode/package.json ./package.json
-          cp hindsight-integrations/opencode/README.md ./README.md
-
-      - name: Commit and push
-        run: |
+          # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Save the built dist/ and key files from main
+          mkdir -p /tmp/plugin-deploy
+          cp -r hindsight-integrations/opencode/dist /tmp/plugin-deploy/dist
+          cp hindsight-integrations/opencode/package.json /tmp/plugin-deploy/package.json
+          cp hindsight-integrations/opencode/README.md /tmp/plugin-deploy/README.md
+
+          # Switch to plugin-dist branch
+          git checkout plugin-dist
+          git pull origin plugin-dist
+
+          # Replace dist/ and key files with freshly built versions
+          rm -rf dist
+          cp -r /tmp/plugin-deploy/dist ./dist
+          cp /tmp/plugin-deploy/package.json ./package.json
+          cp /tmp/plugin-deploy/README.md ./README.md
+
+          # Commit and push if there are changes
           git add dist package.json README.md
-          git diff --staged --quiet && echo "No changes to deploy" && exit 0
-          git commit -m "deploy: plugin-dist build from $(git rev-parse --short main)"
-          git push origin plugin-dist --force
+          if git diff --staged --quiet; then
+            echo "No changes to deploy"
+          else
+            git commit -m "deploy: plugin-dist build from $(git rev-parse --short HEAD~0)"
+            git push origin plugin-dist
+          fi
+
+          # Cleanup
+          rm -rf /tmp/plugin-deploy
