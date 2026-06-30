@@ -120,15 +120,35 @@ export function createTools(
         .string()
         .optional()
         .describe("Optional additional context to guide the reflection."),
+      tags: tool.schema
+        .array(tool.schema.string())
+        .optional()
+        .describe(
+          "Tags to filter by. Overrides config recallTags for this call. " +
+            "Use ['scope:user'] for user-level memories, ['project:<name>'] for project-scoped."
+        ),
+      tagsMatch: tool.schema
+        .string()
+        .optional()
+        .describe(
+          "Tag match mode: 'any', 'all', 'any_strict', 'all_strict'. " +
+            "Defaults to 'any_strict' when tags arg is provided. Ignored if tags arg is omitted."
+        ),
     },
     async execute(args) {
       if (missionsSet) {
         await ensureBankMission(client, bankId, config, missionsSet, logger);
       }
+      const reflectTags = args.tags !== undefined ? args.tags : (config.recallTags.length ? config.recallTags : []);
+      const reflectTagsMatch = args.tags !== undefined
+        ? (args.tagsMatch || "any_strict")
+        : (config.recallTags.length ? config.recallTagsMatch : undefined);
       const response = await client.reflect(bankId, args.query, {
         context: args.context,
         budget: config.recallBudget as "low" | "mid" | "high",
-      });
+        tags: reflectTags.length ? reflectTags : undefined,
+        tagsMatch: reflectTagsMatch,
+      } as any);
 
       return response.text || "No relevant information found to reflect on.";
     },
