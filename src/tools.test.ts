@@ -317,4 +317,76 @@ describe("createTools", () => {
     expect(client.recall.mock.calls[0][0]).toBe("fixed-bank");
     expect(client.reflect.mock.calls[0][0]).toBe("fixed-bank");
   });
+
+  describe("hindsight_retain tags override", () => {
+    it("uses config retainTags when tags arg omitted", async () => {
+      const client = {
+        retain: vi.fn().mockResolvedValue({}),
+        recall: vi.fn(),
+        reflect: vi.fn(),
+      } as any;
+      const config = makeConfig({ retainTags: ["project:my-app"] });
+      const tools = createTools(client, "test-bank", config);
+
+      await tools.hindsight_retain.execute({ content: "fact" }, mockContext);
+
+      expect(client.retain).toHaveBeenCalledWith("test-bank", "fact", expect.objectContaining({
+        tags: ["project:my-app"],
+      }));
+    });
+
+    it("overrides config retainTags when tags arg provided", async () => {
+      const client = {
+        retain: vi.fn().mockResolvedValue({}),
+        recall: vi.fn(),
+        reflect: vi.fn(),
+      } as any;
+      const config = makeConfig({ retainTags: ["project:my-app"] });
+      const tools = createTools(client, "test-bank", config);
+
+      await tools.hindsight_retain.execute(
+        { content: "prefers dark mode", tags: ["scope:user"] },
+        mockContext
+      );
+
+      expect(client.retain).toHaveBeenCalledWith("test-bank", "prefers dark mode", expect.objectContaining({
+        tags: ["scope:user"],
+      }));
+    });
+
+    it("passes undefined tags when neither config nor arg provide tags", async () => {
+      const client = {
+        retain: vi.fn().mockResolvedValue({}),
+        recall: vi.fn(),
+        reflect: vi.fn(),
+      } as any;
+      const config = makeConfig({ retainTags: [] });
+      const tools = createTools(client, "test-bank", config);
+
+      await tools.hindsight_retain.execute({ content: "fact" }, mockContext);
+
+      expect(client.retain).toHaveBeenCalledWith("test-bank", "fact", expect.objectContaining({
+        tags: undefined,
+      }));
+    });
+
+    it("passes empty array when tags arg is empty array", async () => {
+      const client = {
+        retain: vi.fn().mockResolvedValue({}),
+        recall: vi.fn(),
+        reflect: vi.fn(),
+      } as any;
+      const config = makeConfig({ retainTags: ["project:my-app"] });
+      const tools = createTools(client, "test-bank", config);
+
+      await tools.hindsight_retain.execute(
+        { content: "fact", tags: [] },
+        mockContext
+      );
+
+      expect(client.retain).toHaveBeenCalledWith("test-bank", "fact", expect.objectContaining({
+        tags: [],
+      }));
+    });
+  });
 });
