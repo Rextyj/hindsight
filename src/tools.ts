@@ -141,14 +141,14 @@ export function createTools(
       }
       const reflectTags = args.tags !== undefined ? args.tags : (config.recallTags.length ? config.recallTags : []);
       const reflectTagsMatch = args.tags !== undefined
-        ? (args.tagsMatch || "any_strict")
+        ? ((args.tagsMatch || "any_strict") as "any" | "all" | "any_strict" | "all_strict")
         : (config.recallTags.length ? config.recallTagsMatch : undefined);
       const response = await client.reflect(bankId, args.query, {
         context: args.context,
         budget: config.recallBudget as "low" | "mid" | "high",
         tags: reflectTags.length ? reflectTags : undefined,
         tagsMatch: reflectTagsMatch,
-      } as any);
+      });
 
       return response.text || "No relevant information found to reflect on.";
     },

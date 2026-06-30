@@ -166,6 +166,8 @@ All three tools (`hindsight_retain`, `hindsight_recall`, `hindsight_reflect`) ac
 
 When `tags` is omitted, the tool uses the config values (`retainTags`/`recallTags`/`recallTagsMatch`) as before — fully backward compatible.
 
+> **Note:** `hindsight_reflect` now also honors `recallTags`/`recallTagsMatch` from config when `tags` is omitted. Previously, reflect did not apply tag filtering. If you use `HINDSIGHT_RECALL_TAGS` for recall scoping, reflect will now also be scoped by those tags.
+
 ### Project & User Memory Scoping
 
 Use tag conventions to separate project-specific memories from cross-project user-level memories:
