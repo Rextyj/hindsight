@@ -463,4 +463,59 @@ describe("createTools", () => {
       }));
     });
   });
+
+  describe("hindsight_reflect tags override", () => {
+    it("uses config recallTags when tags arg omitted", async () => {
+      const client = {
+        retain: vi.fn(),
+        recall: vi.fn(),
+        reflect: vi.fn().mockResolvedValue({ text: "answer" }),
+      } as any;
+      const config = makeConfig({ recallTags: ["project:my-app"], recallTagsMatch: "any" });
+      const tools = createTools(client, "test-bank", config);
+
+      await tools.hindsight_reflect.execute({ query: "q" }, mockContext);
+
+      const opts = client.reflect.mock.calls[0][2];
+      expect(opts.tags).toEqual(["project:my-app"]);
+      expect(opts.tagsMatch).toBe("any");
+    });
+
+    it("overrides config recallTags when tags arg provided", async () => {
+      const client = {
+        retain: vi.fn(),
+        recall: vi.fn(),
+        reflect: vi.fn().mockResolvedValue({ text: "answer" }),
+      } as any;
+      const config = makeConfig({ recallTags: ["project:my-app"] });
+      const tools = createTools(client, "test-bank", config);
+
+      await tools.hindsight_reflect.execute(
+        { query: "What do you know about me?", tags: ["scope:user"] },
+        mockContext
+      );
+
+      const opts = client.reflect.mock.calls[0][2];
+      expect(opts.tags).toEqual(["scope:user"]);
+      expect(opts.tagsMatch).toBe("any_strict");
+    });
+
+    it("uses explicit tagsMatch when provided with tags", async () => {
+      const client = {
+        retain: vi.fn(),
+        recall: vi.fn(),
+        reflect: vi.fn().mockResolvedValue({ text: "answer" }),
+      } as any;
+      const tools = createTools(client, "test-bank", makeConfig());
+
+      await tools.hindsight_reflect.execute(
+        { query: "q", tags: ["scope:user"], tagsMatch: "all_strict" },
+        mockContext
+      );
+
+      const opts = client.reflect.mock.calls[0][2];
+      expect(opts.tags).toEqual(["scope:user"]);
+      expect(opts.tagsMatch).toBe("all_strict");
+    });
+  });
 });
