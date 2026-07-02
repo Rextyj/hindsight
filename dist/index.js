@@ -143,6 +143,31 @@ function loadConfig(pluginOptions) {
   }
   return result;
 }
+function liveConfig(base) {
+  const out = { ...base };
+  for (const [envName, [key, typ]] of Object.entries(ENV_OVERRIDES)) {
+    const v = process.env[envName];
+    if (v !== void 0) {
+      const cv = castEnv(v, typ);
+      if (cv !== null) {
+        out[key] = cv;
+      }
+    }
+  }
+  const recallTagsEnv = process.env["HINDSIGHT_RECALL_TAGS"];
+  if (recallTagsEnv !== void 0) {
+    out.recallTags = recallTagsEnv.split(",").map((t) => t.trim()).filter(Boolean);
+  }
+  const recallTagsMatchEnv = process.env["HINDSIGHT_RECALL_TAGS_MATCH"];
+  if (recallTagsMatchEnv !== void 0) {
+    out.recallTagsMatch = recallTagsMatchEnv;
+  }
+  const retainTagsEnv = process.env["HINDSIGHT_RETAIN_TAGS"];
+  if (retainTagsEnv !== void 0) {
+    out.retainTags = retainTagsEnv.split(",").map((t) => t.trim()).filter(Boolean);
+  }
+  return out;
+}
 
 // src/bank.ts
 import { basename, dirname } from "path";
@@ -396,13 +421,14 @@ function createTools(client, bankId, config, missionsSet, logger = new Logger({ 
       )
     },
     async execute(args) {
+      const cfg = liveConfig(config);
       if (missionsSet) {
-        await ensureBankMission(client, bankId, config, missionsSet, logger);
+        await ensureBankMission(client, bankId, cfg, missionsSet, logger);
       }
       await client.retain(bankId, args.content, {
-        context: args.context || config.retainContext,
-        tags: args.tags !== void 0 ? args.tags : config.retainTags.length ? config.retainTags : void 0,
-        metadata: Object.keys(config.retainMetadata).length ? config.retainMetadata : void 0
+        context: args.context || cfg.retainContext,
+        tags: args.tags !== void 0 ? args.tags : cfg.retainTags.length ? cfg.retainTags : void 0,
+        metadata: Object.keys(cfg.retainMetadata).length ? cfg.retainMetadata : void 0
       });
       return "Memory stored successfully.";
     }
@@ -419,12 +445,13 @@ function createTools(client, bankId, config, missionsSet, logger = new Logger({ 
       )
     },
     async execute(args) {
-      const recallTags = args.tags !== void 0 ? args.tags : config.recallTags.length ? config.recallTags : [];
-      const recallTagsMatch = args.tags !== void 0 ? args.tagsMatch || "any_strict" : config.recallTags.length ? config.recallTagsMatch : void 0;
+      const cfg = liveConfig(config);
+      const recallTags = args.tags !== void 0 ? args.tags : cfg.recallTags.length ? cfg.recallTags : [];
+      const recallTagsMatch = args.tags !== void 0 ? args.tagsMatch || "any_strict" : cfg.recallTags.length ? cfg.recallTagsMatch : void 0;
       const response = await client.recall(bankId, args.query, {
-        budget: config.recallBudget,
-        maxTokens: config.recallMaxTokens,
-        types: config.recallTypes,
+        budget: cfg.recallBudget,
+        maxTokens: cfg.recallMaxTokens,
+        types: cfg.recallTypes,
         tags: recallTags.length ? recallTags : void 0,
         tagsMatch: recallTagsMatch
       });
@@ -449,14 +476,15 @@ ${formatted}`;
       )
     },
     async execute(args) {
+      const cfg = liveConfig(config);
       if (missionsSet) {
-        await ensureBankMission(client, bankId, config, missionsSet, logger);
+        await ensureBankMission(client, bankId, cfg, missionsSet, logger);
       }
-      const reflectTags = args.tags !== void 0 ? args.tags : config.recallTags.length ? config.recallTags : [];
-      const reflectTagsMatch = args.tags !== void 0 ? args.tagsMatch || "any_strict" : config.recallTags.length ? config.recallTagsMatch : void 0;
+      const reflectTags = args.tags !== void 0 ? args.tags : cfg.recallTags.length ? cfg.recallTags : [];
+      const reflectTagsMatch = args.tags !== void 0 ? args.tagsMatch || "any_strict" : cfg.recallTags.length ? cfg.recallTagsMatch : void 0;
       const response = await client.reflect(bankId, args.query, {
         context: args.context,
-        budget: config.recallBudget,
+        budget: cfg.recallBudget,
         tags: reflectTags.length ? reflectTags : void 0,
         tagsMatch: reflectTagsMatch
       });
@@ -470,18 +498,19 @@ ${formatted}`;
 function createHooks(hindsightClient, bankId, config, state2, opencodeClient, logger = new Logger({ silent: true })) {
   async function recallForContext(query) {
     try {
+      const cfg = liveConfig(config);
       const response = await hindsightClient.recall(bankId, query, {
-        budget: config.recallBudget,
-        maxTokens: config.recallMaxTokens,
-        types: config.recallTypes,
-        tags: config.recallTags.length ? config.recallTags : void 0,
-        tagsMatch: config.recallTags.length ? config.recallTagsMatch : void 0
+        budget: cfg.recallBudget,
+        maxTokens: cfg.recallMaxTokens,
+        types: cfg.recallTypes,
+        tags: cfg.recallTags.length ? cfg.recallTags : void 0,
+        tagsMatch: cfg.recallTags.length ? cfg.recallTagsMatch : void 0
       });
       const results = response.results || [];
       if (!results.length) return { context: null, ok: true };
       const formatted = formatMemories(results);
       const context = `<hindsight_memories>
-${config.recallPromptPreamble}
+${cfg.recallPromptPreamble}
 Current time: ${formatCurrentTime()} UTC
 
 ${formatted}
@@ -534,12 +563,13 @@ ${formatted}
     }
     const { transcript } = prepareRetentionTranscript(targetMessages, true);
     if (!transcript) return;
-    await ensureBankMission(hindsightClient, bankId, config, state2.missionsSet, logger);
+    const cfg = liveConfig(config);
+    await ensureBankMission(hindsightClient, bankId, cfg, state2.missionsSet, logger);
     await hindsightClient.retain(bankId, transcript, {
       documentId,
-      context: config.retainContext,
-      tags: config.retainTags.length ? config.retainTags : void 0,
-      metadata: Object.keys(config.retainMetadata).length ? { ...config.retainMetadata, session_id: sessionId } : { session_id: sessionId },
+      context: cfg.retainContext,
+      tags: cfg.retainTags.length ? cfg.retainTags : void 0,
+      metadata: Object.keys(cfg.retainMetadata).length ? { ...cfg.retainMetadata, session_id: sessionId } : { session_id: sessionId },
       async: true
     });
   }
