@@ -1,6 +1,6 @@
 {
   "name": "@rextyj/opencode-hindsight",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Hindsight memory plugin for OpenCode - Give your AI coding agent persistent long-term memory",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
