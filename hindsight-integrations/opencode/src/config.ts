@@ -227,3 +227,47 @@ export function loadConfig(pluginOptions?: Record<string, unknown>): HindsightCo
 
   return result;
 }
+
+/**
+ * Apply env var overrides on top of a cached base config at call time.
+ *
+ * `loadConfig()` runs once during plugin init, snapshotting the env vars
+ * present at that moment. direnv injects project-level env vars (e.g.
+ * `HINDSIGHT_RETAIN_TAGS`) AFTER the plugin loads, so the cached config never
+ * sees them. Hooks/tools call this helper at execution time to re-read the
+ * live env and overlay the current values on the cached base.
+ *
+ * Additive only — does not touch `loadConfig` or mutate `base`.
+ */
+export function liveConfig(base: HindsightConfig): HindsightConfig {
+  const out: HindsightConfig = { ...base };
+  for (const [envName, [key, typ]] of Object.entries(ENV_OVERRIDES)) {
+    const v = process.env[envName];
+    if (v !== undefined) {
+      const cv = castEnv(v, typ);
+      if (cv !== null) {
+        (out as unknown as Record<string, unknown>)[key] = cv;
+      }
+    }
+  }
+  // Array env vars (comma-separated) — mirror loadConfig's handling.
+  const recallTagsEnv = process.env["HINDSIGHT_RECALL_TAGS"];
+  if (recallTagsEnv !== undefined) {
+    out.recallTags = recallTagsEnv
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+  }
+  const recallTagsMatchEnv = process.env["HINDSIGHT_RECALL_TAGS_MATCH"];
+  if (recallTagsMatchEnv !== undefined) {
+    out.recallTagsMatch = recallTagsMatchEnv as HindsightConfig["recallTagsMatch"];
+  }
+  const retainTagsEnv = process.env["HINDSIGHT_RETAIN_TAGS"];
+  if (retainTagsEnv !== undefined) {
+    out.retainTags = retainTagsEnv
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+  }
+  return out;
+}

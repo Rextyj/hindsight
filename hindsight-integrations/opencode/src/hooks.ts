@@ -10,6 +10,7 @@
 
 import type { HindsightClient } from "@vectorize-io/hindsight-client";
 import type { HindsightConfig } from "./config.js";
+import { liveConfig } from "./config.js";
 import { Logger } from "./logger.js";
 import {
   formatMemories,
@@ -100,12 +101,13 @@ export function createHooks(
   /** Recall memories and format as context string */
   async function recallForContext(query: string): Promise<RecallOutcome> {
     try {
+      const cfg = liveConfig(config);
       const response = await hindsightClient.recall(bankId, query, {
-        budget: config.recallBudget as "low" | "mid" | "high",
-        maxTokens: config.recallMaxTokens,
-        types: config.recallTypes,
-        tags: config.recallTags.length ? config.recallTags : undefined,
-        tagsMatch: config.recallTags.length ? config.recallTagsMatch : undefined,
+        budget: cfg.recallBudget as "low" | "mid" | "high",
+        maxTokens: cfg.recallMaxTokens,
+        types: cfg.recallTypes,
+        tags: cfg.recallTags.length ? cfg.recallTags : undefined,
+        tagsMatch: cfg.recallTags.length ? cfg.recallTagsMatch : undefined,
       });
 
       const results = response.results || [];
@@ -114,7 +116,7 @@ export function createHooks(
       const formatted = formatMemories(results);
       const context =
         `<hindsight_memories>\n` +
-        `${config.recallPromptPreamble}\n` +
+        `${cfg.recallPromptPreamble}\n` +
         `Current time: ${formatCurrentTime()} UTC\n\n` +
         `${formatted}\n` +
         `</hindsight_memories>`;
@@ -179,13 +181,14 @@ export function createHooks(
     const { transcript } = prepareRetentionTranscript(targetMessages, true);
     if (!transcript) return;
 
-    await ensureBankMission(hindsightClient, bankId, config, state.missionsSet, logger);
+    const cfg = liveConfig(config);
+    await ensureBankMission(hindsightClient, bankId, cfg, state.missionsSet, logger);
     await hindsightClient.retain(bankId, transcript, {
       documentId,
-      context: config.retainContext,
-      tags: config.retainTags.length ? config.retainTags : undefined,
-      metadata: Object.keys(config.retainMetadata).length
-        ? { ...config.retainMetadata, session_id: sessionId }
+      context: cfg.retainContext,
+      tags: cfg.retainTags.length ? cfg.retainTags : undefined,
+      metadata: Object.keys(cfg.retainMetadata).length
+        ? { ...cfg.retainMetadata, session_id: sessionId }
         : { session_id: sessionId },
       async: true,
     });

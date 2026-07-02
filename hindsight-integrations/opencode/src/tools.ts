@@ -9,6 +9,7 @@ import { tool } from "@opencode-ai/plugin/tool";
 import type { ToolDefinition } from "@opencode-ai/plugin/tool";
 import type { HindsightClient } from "@vectorize-io/hindsight-client";
 import type { HindsightConfig } from "./config.js";
+import { liveConfig } from "./config.js";
 import { formatMemories, formatCurrentTime } from "./content.js";
 import { ensureBankMission } from "./bank.js";
 import { Logger } from "./logger.js";
@@ -52,13 +53,14 @@ export function createTools(
         ),
     },
     async execute(args) {
+      const cfg = liveConfig(config);
       if (missionsSet) {
-        await ensureBankMission(client, bankId, config, missionsSet, logger);
+        await ensureBankMission(client, bankId, cfg, missionsSet, logger);
       }
       await client.retain(bankId, args.content, {
-        context: args.context || config.retainContext,
-        tags: args.tags !== undefined ? args.tags : (config.retainTags.length ? config.retainTags : undefined),
-        metadata: Object.keys(config.retainMetadata).length ? config.retainMetadata : undefined,
+        context: args.context || cfg.retainContext,
+        tags: args.tags !== undefined ? args.tags : (cfg.retainTags.length ? cfg.retainTags : undefined),
+        metadata: Object.keys(cfg.retainMetadata).length ? cfg.retainMetadata : undefined,
       });
       return "Memory stored successfully.";
     },
@@ -89,14 +91,15 @@ export function createTools(
         ),
     },
     async execute(args) {
-      const recallTags = args.tags !== undefined ? args.tags : (config.recallTags.length ? config.recallTags : []);
+      const cfg = liveConfig(config);
+      const recallTags = args.tags !== undefined ? args.tags : (cfg.recallTags.length ? cfg.recallTags : []);
       const recallTagsMatch = args.tags !== undefined
         ? ((args.tagsMatch || "any_strict") as "any" | "all" | "any_strict" | "all_strict")
-        : (config.recallTags.length ? config.recallTagsMatch : undefined);
+        : (cfg.recallTags.length ? cfg.recallTagsMatch : undefined);
       const response = await client.recall(bankId, args.query, {
-        budget: config.recallBudget as "low" | "mid" | "high",
-        maxTokens: config.recallMaxTokens,
-        types: config.recallTypes,
+        budget: cfg.recallBudget as "low" | "mid" | "high",
+        maxTokens: cfg.recallMaxTokens,
+        types: cfg.recallTypes,
         tags: recallTags.length ? recallTags : undefined,
         tagsMatch: recallTagsMatch,
       });
@@ -136,16 +139,17 @@ export function createTools(
         ),
     },
     async execute(args) {
+      const cfg = liveConfig(config);
       if (missionsSet) {
-        await ensureBankMission(client, bankId, config, missionsSet, logger);
+        await ensureBankMission(client, bankId, cfg, missionsSet, logger);
       }
-      const reflectTags = args.tags !== undefined ? args.tags : (config.recallTags.length ? config.recallTags : []);
+      const reflectTags = args.tags !== undefined ? args.tags : (cfg.recallTags.length ? cfg.recallTags : []);
       const reflectTagsMatch = args.tags !== undefined
         ? ((args.tagsMatch || "any_strict") as "any" | "all" | "any_strict" | "all_strict")
-        : (config.recallTags.length ? config.recallTagsMatch : undefined);
+        : (cfg.recallTags.length ? cfg.recallTagsMatch : undefined);
       const response = await client.reflect(bankId, args.query, {
         context: args.context,
-        budget: config.recallBudget as "low" | "mid" | "high",
+        budget: cfg.recallBudget as "low" | "mid" | "high",
         tags: reflectTags.length ? reflectTags : undefined,
         tagsMatch: reflectTagsMatch,
       });
