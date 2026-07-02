@@ -42,8 +42,11 @@ jobs:
           cp hindsight-integrations/opencode/package.json /tmp/plugin-deploy/package.json
           cp hindsight-integrations/opencode/README.md /tmp/plugin-deploy/README.md
 
-          # Switch to plugin-dist branch
-          git checkout plugin-dist
+          # Switch to plugin-dist branch.
+          # `npm install` may have regenerated package-lock.json, dirtying the
+          # worktree — force-checkout discards those local changes so we can
+          # switch. The built dist/ we need is already saved in /tmp/plugin-deploy.
+          git checkout -f plugin-dist
           git pull origin plugin-dist
 
           # Replace dist/ and key files with freshly built versions
